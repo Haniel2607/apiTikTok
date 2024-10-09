@@ -260,20 +260,6 @@ app.get('/comentario', async (req, res) => {
     }
 });
 
-// Rota para obter um comentário específico
-app.get('/comentario/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const comentario = await Comentario.findById(id).populate('usuario').populate('video');
-        if (!comentario) {
-            return res.status(404).send({ message: 'Comentário não encontrado' });
-        }
-        res.status(200).send(comentario);
-    } catch (error) {
-        res.status(500).send({ message: 'Erro ao obter comentário', error });
-    }
-});
-
 // Rota para atualizar um comentário
 app.patch('/comentario/:id', async (req, res) => {
     try {
