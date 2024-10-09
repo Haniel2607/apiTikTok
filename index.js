@@ -54,13 +54,14 @@ mongoose.connect('mongodb://localhost:27017/apiTikTok', { useNewUrlParser: true,
 
 // Rota para login
 app.post('/login', async (req, res) => {
-    let { email, pass } = req.body;
+    console.log('Corpo da requisição:', req.body); // Log para depuração
+    let { email, senha } = req.body;
     try {
-        if (!pass) {
+        if (!senha) {
             throw new Error('Password is required');
         }
-        console.log(`Password received: ${pass}`); // Log para depuração
-        let encryptedPass = await getCrypto(pass);
+        console.log(`Password received: ${senha}`); // Log para depuração
+        let encryptedPass = await getCrypto(senha);
         const person = await Usuario.findOne({ email, senha: encryptedPass });
         if (!person) {
             res.status(422).json({ message: 'Credenciais inválidas!' });
