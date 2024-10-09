@@ -6,15 +6,20 @@ const Usuario = require('./models/usuario');
 const Comentario = require('./models/comentarios');
 const Video = require('./models/videos');
 
-// Criando função para criptografar senhas
+// Configurações de criptografia
 const cipher = {
-    algorithm: "aes256",
-    secret: "chaves",
-    type: "hex"
+    algorithm: 'aes-256-cbc',
+    secret: 'chaves',
+    type: 'hex'
 };
 
 async function getCrypto(password) {
     return new Promise((resolve, reject) => {
+        if (typeof password !== 'string') {
+            reject(new Error('Password must be a string'));
+            return;
+        }
+
         const cipherStream = crypto.createCipher(cipher.algorithm, cipher.secret);
         let encryptedData = '';
 
@@ -47,18 +52,98 @@ mongoose.connect('mongodb://localhost:27017/apiTikTok', { useNewUrlParser: true,
     .then(() => console.log('Conectado ao MongoDB'))
     .catch(err => console.error('Erro ao conectar ao MongoDB', err));
 
-// Rotas de exemplo
-app.post('/usuario', async (req, res) => {
-    const { email, senha } = req.body;
-    const senhaCriptografada = await getCrypto(senha);
-    const usuario = new Usuario({ email, senha: senhaCriptografada });
-    await usuario.save();
-    res.status(201).send({ message: 'Usuário criado com sucesso', usuario });
+// Rota para login
+app.post('/login', async (req, res) => {
+    let { email, pass } = req.body;
+    try {
+        if (!pass) {
+            throw new Error('Password is required');
+        }
+        console.log(`Password received: ${pass}`); // Log para depuração
+        let encryptedPass = await getCrypto(pass);
+        const person = await Usuario.findOne({ email, senha: encryptedPass });
+        if (!person) {
+            res.status(422).json({ message: 'Credenciais inválidas!' });
+            return;
+        }
+        res.status(200).json({ message: 'Usuário Logado', user: person });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
+// Rota para criar um usuário
+app.post('/usuario', async (req, res) => {
+    const { email, senha } = req.body;
+    try {
+        if (!senha) {
+            throw new Error('Password is required');
+        }
+        console.log(`Password received: ${senha}`); // Log para depuração
+        const senhaCriptografada = await getCrypto(senha);
+        const usuario = new Usuario({ email, senha: senhaCriptografada });
+        await usuario.save();
+        res.status(201).send({ message: 'Usuário criado com sucesso', usuario });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para obter todos os usuários
 app.get('/usuario', async (req, res) => {
-    const usuarios = await Usuario.find();
-    res.status(200).send(usuarios);
+    try {
+        const usuarios = await Usuario.find();
+        res.status(200).send(usuarios);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para obter um usuário específico
+app.get('/usuario/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuario = await Usuario.findById(id);
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado' });
+        }
+        res.status(200).send(usuario);
+    } catch (error) {
+        res.status(500).send({ message: 'Erro ao obter usuário', error });
+    }
+});
+
+// Rota para atualizar um usuário
+app.patch('/usuario/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { email, senha } = req.body;
+        let updateData = { email };
+        if (senha) {
+            updateData.senha = await getCrypto(senha);
+        }
+        const usuario = await Usuario.findByIdAndUpdate(id, updateData, { new: true });
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado' });
+        }
+        res.status(200).send({ message: 'Usuário atualizado com sucesso', usuario });
+    } catch (error) {
+        res.status(500).send({ message: 'Erro ao atualizar usuário', error });
+    }
+});
+
+// Rota para deletar um usuário
+app.delete('/usuario/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const usuario = await Usuario.findByIdAndDelete(id);
+        if (!usuario) {
+            return res.status(404).send({ message: 'Usuário não encontrado' });
+        }
+        res.status(200).send({ message: 'Usuário deletado com sucesso' });
+    } catch (error) {
+        res.status(500).send({ message: 'Erro ao deletar usuário', error });
+    }
 });
 
 // Rota para criar um vídeo
